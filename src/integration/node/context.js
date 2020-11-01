@@ -23,6 +23,7 @@ const environment = {
 // expose abstractions in the execution context
 const context = {
   environment,
+  logger: require('./logger'),
   respond({ statusCode, statusText = '', body, headers }) {
     return new Response(body, {
       status: statusCode,

@@ -1,4 +1,4 @@
-const log = require('../integration/logging/logger')('debug')
+const log = context.logger('debug')
 
 module.exports = async (request, response, next) => {
   try {

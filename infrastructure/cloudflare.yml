@@ -12,6 +12,10 @@ provider:
   config:
     accountId: ${env:CLOUDFLARE_ACCOUNT_ID}
     zoneId: ${env:CLOUDFLARE_ZONE_ID}
+  environment:
+    BACKING_API_ENDPOINT: ${env:BACKING_API_ENDPOINT}
+    BACKING_API_KEY: ${env:BACKING_API_KEY}
+    DEBUG: ${env:DEBUG}
 
 plugins:
   - serverless-cloudflare-workers

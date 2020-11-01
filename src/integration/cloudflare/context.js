@@ -1,5 +1,7 @@
 /* eslint-disable no-restricted-globals, no-empty */
 
+const observability = require('./observability')
+
 // abstraction for accessing environment variables
 const environment = {
   variable(key) {
@@ -14,15 +16,19 @@ const environment = {
 }
 
 // expose abstractions in the execution context
-const context = {
-  environment,
-  respond({ statusCode, statusText = '', body, headers }) {
-    return new Response(body, {
-      status: statusCode,
-      statusText,
-      headers,
-    })
-  },
+module.exports.init = () => {
+  global.context = {
+    environment,
+    log: [],
+    logger: require('./logger'),
+    async respond({ request, route, statusCode, statusText = '', body, headers }) {
+      await observability.send({ request, route, statusCode })
+      return new Response(body, {
+        status: statusCode,
+        statusText,
+        headers,
+      })
+    },
+    startTime: Date.now(),
+  }
 }
-
-global.context = context

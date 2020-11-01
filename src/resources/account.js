@@ -3,7 +3,7 @@ const HttpResponse = require('../integration/http/response')
 const Middleware = require('../integration/middleware/middleware')
 const RouteMatcher = require('../integration/middleware/route-matcher')
 
-const log = require('../integration/logging/logger')('resource:account')
+const log = context.logger('resource:account')
 
 async function resource(event) {
   return new Promise((resolve) => {

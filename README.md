@@ -1,8 +1,8 @@
-# API middleware for Cloudflare Workers
+# API observability for Cloudflare Workers
 
-This repo contains a proof of concept for API middleware running in Cloudflare Workers. In this repo a middleware architecture, similar to frameworks like [express](https://expressjs.com/), is presented that enables you to create modular API behaviour that runs in response to the method and more complex route matching of the path from the HTTP request inside your Cloudflare Workers.
+This repo contains a proof of concept for observability in Cloudflare Workers using AWS CloudWatch. In this repo an observability abstraction is created to capture logs and generate metrics that are flushed to an observability endpoint at the end of each request.
 
-There is an [accompanying blog post](https://blog.peasey.co.uk/blog/a-middleware-architecture-for-cloudflare-workers).
+There is an [accompanying blog post](https://blog.peasey.co.uk/blog/api-observability-for-cloudflare-workers).
 
 ## Configuration
 
@@ -16,6 +16,9 @@ The configuration is handled by `dotenv` so the first thing you need to do is ad
 | CLOUDFLARE_AUTH_EMAIL | This should be set to the email address you use to sign into your Cloudflare account.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | HOST                  | This should be set to the API host you want to use in your routes, i.e. api.somewhere.com.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | ENVIRONMENT           | This should be set to the logical environment you are deploying to in the physical account. It defaults to 'prod', and when the environment is 'prod', it deploys the route at the root of the host (above), i.e. api.somewhere.com/my/route*. When you specify an environment other than 'prod', the routes are deployed using the environment as a suffix on the host and prefix to the route, i.e. api.somewhere.com/env/my/route*. This is useful if you want multiple logical environments in a single account, i.e. many developers working in a development account (api.devsite.com/alex/my/route*) or for deploying PRs as part of CI/CD processes etc (api.devsite.com/pr32/my/route*). |
+| AWS_REGION            | Standard AWS environment variable to specify the region for your resources.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| AWS_ACCESS_KEY_ID     | Standard AWS environment variable to specify the identity of the secret key you want to use for API operations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| AWS_SECRET_ACCESS_KEY | Standard AWS environment variable to specify the secret key for API operations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 <br>
 
@@ -31,13 +34,31 @@ The configuration is handled by `dotenv` so the first thing you need to do is ad
 
 I've created some npm scripts to simplify the commands when wrapped with configuration. Replace _somewhere.com_ with the host you configured in the **.env** file below:
 
-### Deploy:
+### Deploy AWS resources:
+
+```bash
+> npm run deploy:aws
+```
+
+### Deploy Cloudflare resources:
 
 ```bash
 > npm run deploy
 ```
 
-### Remove:
+### Run the load test features in the blog post:
+
+```bash
+> npm run load
+```
+
+### Remove AWS resources:
+
+```bash
+> npm run remove:aws
+```
+
+### Remove CloudFlare resources:
 
 ```bash
 > npm run remove
@@ -47,3 +68,4 @@ I've created some npm scripts to simplify the commands when wrapped with configu
 >
 > - [Blue / Green deployments for Cloudflare Workers](https://github.com/peasey/cloudflare-workers-blue-green-poc)
 > - [Enhancing the development experience for Cloudflare Workers](https://github.com/peasey/cloudflare-workers-local-dev-poc)
+> - [A middleware architecture for Cloudflare Workers](https://github.com/peasey/cloudflare-workers-middleware)

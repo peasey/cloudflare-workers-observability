@@ -1,0 +1,25 @@
+config:
+  target: https://blue-api.peasey.co.uk
+  phases:
+    - duration: 60
+      arrivalRate: 10
+  variables:
+    unauthorised:
+      - 'true'
+      - 'false'
+      - 'false'
+      - 'false'
+      - 'false'
+    invalid:
+      - 'true'
+      - 'false'
+      - 'false'
+      - 'false'
+      - 'false'
+scenarios:
+  - flow:
+      - get:
+          url: '/account/1234567890'
+          headers:
+            unauthorised: '{{ unauthorised }}'
+            invalid: '{{ invalid }}'

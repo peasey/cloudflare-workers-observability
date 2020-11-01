@@ -1,7 +1,8 @@
 /* eslint-disable no-restricted-globals */
-require('../context')
+const context = require('../context')
 
 addEventListener('fetch', (event) => {
+  context.init()
   const resource = require('../../../resources/account')
   event.respondWith(resource(event))
 })

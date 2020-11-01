@@ -1,7 +1,7 @@
 const { Path } = require('path-parser')
 const required = require('../../util/required-param')
 
-const log = require('../logging/logger')('middleware:route-matcher')
+const log = context.logger('middleware:route-matcher')
 
 class RouteMatcher {
   constructor(basePath = '') {

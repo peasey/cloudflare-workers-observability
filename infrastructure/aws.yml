@@ -1,0 +1,268 @@
+service:
+  name: backing-api
+
+provider:
+  name: aws
+  # we use 'stage' instead of environment here as serverless frmaework is expecting a stage for naming resources in some cases
+  stage: ${env:ENVIRONMENT, 'prod'}
+  slot: ${env:SLOT, 'blue'}
+  resourceContext: ${self:provider.stage}-${self:provider.slot}
+  region: ${env:AWS_REGION, 'eu-west-1'}
+  logGroupName: cloudflare-api-logs
+
+package:
+  # exclude everything but the src, node_modules and infrastructure directories (serverless will not include modules that are devDependencies)
+  exclude:
+    - '*'
+    - .*/**
+    - config/**
+    - dist/**
+    - testing/**
+
+plugins:
+  - serverless-pseudo-parameters
+
+resources:
+  Resources:
+    restApi:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: ${self:provider.resourceContext}-api
+
+    restApiKey:
+      Type: AWS::ApiGateway::ApiKey
+      Properties:
+        Name: ${self:provider.resourceContext}-api-key
+        Enabled: true
+
+    restApiUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      Properties:
+        UsagePlanName: ${self:provider.resourceContext}-api-usage
+        ApiStages:
+          - ApiId:
+              Ref: restApi
+            Stage:
+              Ref: restApiStage
+
+    restApiUsagePlanKey:
+      Type: AWS::ApiGateway::UsagePlanKey
+      Properties:
+        KeyId:
+          Ref: restApiKey
+        KeyType: 'API_KEY'
+        UsagePlanId:
+          Ref: restApiUsagePlan
+
+    restApiDeployment:
+      Type: AWS::ApiGateway::Deployment
+      DependsOn: observabilityLogsStreamMethod
+      Properties:
+        RestApiId:
+          Ref: restApi
+        StageName: 'Dummy'
+
+    restApiStage:
+      Type: AWS::ApiGateway::Stage
+      Properties:
+        DeploymentId:
+          Ref: restApiDeployment
+        RestApiId:
+          Ref: restApi
+        StageName: ${self:provider.stage}
+
+    logGroup:
+      Type: AWS::Logs::LogGroup
+      Properties:
+        LogGroupName: ${self:provider.resourceContext}-${self:provider.logGroupName}
+
+    observabilityResource:
+      Type: AWS::ApiGateway::Resource
+      Properties:
+        ParentId:
+          Fn::GetAtt:
+            - restApi
+            - RootResourceId
+        PathPart: observability
+        RestApiId:
+          Ref: restApi
+
+    observabilityLogsResource:
+      Type: AWS::ApiGateway::Resource
+      Properties:
+        ParentId:
+          Ref: observabilityResource
+        PathPart: logs
+        RestApiId:
+          Ref: restApi
+
+    observabilityLogsStreamResource:
+      Type: AWS::ApiGateway::Resource
+      Properties:
+        ParentId:
+          Ref: observabilityLogsResource
+        PathPart: stream
+        RestApiId:
+          Ref: restApi
+
+    observabilityMetricsResource:
+      Type: AWS::ApiGateway::Resource
+      Properties:
+        ParentId:
+          Ref: observabilityResource
+        PathPart: metrics
+        RestApiId:
+          Ref: restApi
+
+    observabilityRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: ${self:provider.resourceContext}-#{AWS::Region}-observability-policy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - cloudwatch:PutMetricData
+                  Resource: '*'
+                  Effect: Allow
+
+    observabilityLogsStreamMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        ApiKeyRequired: true
+        HttpMethod: 'PUT'
+        Integration:
+          Credentials:
+            Fn::GetAtt:
+              - observabilityRole
+              - Arn
+          IntegrationHttpMethod: 'POST'
+          Type: 'AWS'
+          Uri: arn:aws:apigateway:#{AWS::Region}:logs:action/CreateLogStream
+          RequestParameters:
+            integration.request.header.X-Amz-Target: "'Logs_20140328.CreateLogStream'"
+            integration.request.header.Content-Type: "'application/x-amz-json-1.1'"
+          PassthroughBehavior: NEVER
+          RequestTemplates:
+            'application/json': "{\n \"logGroupName\": \"${self:provider.resourceContext}-${self:provider.logGroupName}\",\n \"logStreamName\": \"$input.path('$.stream')\"\n}"
+          IntegrationResponses:
+            - StatusCode: 200
+            - StatusCode: 400
+              SelectionPattern: '400'
+            - StatusCode: 500
+              SelectionPattern: '500'
+        MethodResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 400
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 500
+            ResponseParameters:
+              method.response.header.Content-Type: true
+        ResourceId:
+          Ref: observabilityLogsStreamResource
+        RestApiId:
+          Ref: restApi
+
+    observabilityLogsMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        ApiKeyRequired: true
+        HttpMethod: 'POST'
+        Integration:
+          Credentials:
+            Fn::GetAtt:
+              - observabilityRole
+              - Arn
+          IntegrationHttpMethod: 'POST'
+          Type: 'AWS'
+          Uri: arn:aws:apigateway:#{AWS::Region}:logs:action/PutLogEvents
+          RequestParameters:
+            integration.request.header.X-Amz-Target: "'Logs_20140328.PutLogEvents'"
+            integration.request.header.Content-Type: "'application/x-amz-json-1.1'"
+          PassthroughBehavior: NEVER
+          RequestTemplates:
+            'application/json': "{\n \"logGroupName\": \"${self:provider.resourceContext}-${self:provider.logGroupName}\",\n \"logStreamName\": \"$input.path('$.stream')\",\n \"logEvents\": $input.path('$.log')\n}"
+          IntegrationResponses:
+            - StatusCode: 200
+            - StatusCode: 400
+              SelectionPattern: '400'
+            - StatusCode: 500
+              SelectionPattern: '500'
+        MethodResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 400
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 500
+            ResponseParameters:
+              method.response.header.Content-Type: true
+        ResourceId:
+          Ref: observabilityLogsResource
+        RestApiId:
+          Ref: restApi
+
+    observabilityMetricsMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        ApiKeyRequired: true
+        HttpMethod: 'POST'
+        Integration:
+          Credentials:
+            Fn::GetAtt:
+              - observabilityRole
+              - Arn
+          IntegrationHttpMethod: 'POST'
+          Type: 'AWS'
+          Uri: arn:aws:apigateway:#{AWS::Region}:monitoring:action/PutMetricData
+          RequestParameters:
+            integration.request.header.Accept: "'application/json'"
+            integration.request.header.X-Amz-Target: "'GraniteServiceVersion20100801.PutMetricData'"
+            integration.request.header.Content-Encoding: "'amz-1.0'"
+            integration.request.header.Content-Type: "'application/json'"
+          PassthroughBehavior: WHEN_NO_TEMPLATES
+          IntegrationResponses:
+            - StatusCode: 200
+            - StatusCode: 400
+              SelectionPattern: '400'
+            - StatusCode: 500
+              SelectionPattern: '500'
+        MethodResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 400
+            ResponseParameters:
+              method.response.header.Content-Type: true
+          - StatusCode: 500
+            ResponseParameters:
+              method.response.header.Content-Type: true
+        ResourceId:
+          Ref: observabilityMetricsResource
+        RestApiId:
+          Ref: restApi
+
+  Outputs:
+    ApiHost:
+      Value: ${restApi}.execute-api.#{AWS::Region}.amazonaws.com
+    ApiEndpoint:
+      Value: https://${restApi}.execute-api.#{AWS::Region}.amazonaws.com/${self:provider.stage}

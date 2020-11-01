@@ -1,4 +1,4 @@
-const log = require('../logging/logger')('middleware:pipeline')
+const log = context.logger('middleware:pipeline')
 
 class MiddlewarePipeline {
   use(module) {

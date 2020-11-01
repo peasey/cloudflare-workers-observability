@@ -1,7 +1,7 @@
 {
-  "name": "cloudflare-workers-middleware",
+  "name": "cloudflare-workers-observability",
   "version": "1.0.0",
-  "description": "This repo contains a proof of concept for API middleware running in Cloudflare Workers.",
+  "description": "This repo contains a proof of concept for API obserability running in Cloudflare Workers.",
   "main": "index.js",
   "scripts": {
     "deploy": "dotenv -- serverless deploy --config infrastructure/cloudflare.yml",
@@ -15,15 +15,21 @@
     "rotate": "dotenv -- serverless rotate --config infrastructure/cloudflare.yml",
     "rotate:account": "dotenv -- serverless rotate --function account --config infrastructure/cloudflare.yml",
     "current-slot": "dotenv -- serverless current-slot --config infrastructure/cloudflare.yml",
-    "current-slot:account": "dotenv -- serverless current-slot --function account --config infrastructure/cloudflare.yml"
+    "current-slot:account": "dotenv -- serverless current-slot --function account --config infrastructure/cloudflare.yml",
+    "package:aws": "dotenv -- serverless package --config infrastructure/aws.yml",
+    "deploy:aws": "dotenv -- serverless deploy --config infrastructure/aws.yml --verbose",
+    "remove:aws": "dotenv -- serverless remove --config infrastructure/aws.yml",
+    "load": "artillery run testing/load/account.yml"
   },
   "keywords": [],
   "author": "Peasey",
   "license": "MIT",
   "dependencies": {
-    "path-parser": "^6.1.0"
+    "path-parser": "^6.1.0",
+    "uuid": "^8.3.1"
   },
   "devDependencies": {
+    "artillery": "^1.6.1",
     "dotenv-cli": "^4.0.0",
     "eslint": "^7.9.0",
     "eslint-config-airbnb": "^18.2.0",
@@ -35,6 +41,7 @@
     "node-fetch": "^2.6.1",
     "prettier": "^2.1.2",
     "serverless": "^2.7.0",
-    "serverless-cloudflare-workers": "^1.2.0"
+    "serverless-cloudflare-workers": "^1.2.0",
+    "serverless-pseudo-parameters": "^2.5.0"
   }
 }

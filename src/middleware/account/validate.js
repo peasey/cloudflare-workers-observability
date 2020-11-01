@@ -1,4 +1,4 @@
-const log = require('../../integration/logging/logger')('account:validate')
+const log = context.logger('account:validate')
 
 module.exports = async (request, response, next) => {
   try {
